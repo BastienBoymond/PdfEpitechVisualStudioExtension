@@ -33,32 +33,43 @@ async function getPdf(autolog: string) {
 		}
 	}
 	await Promise.all(promises);
+	
 	console.log(pdfList);
 	return pdfList;
 }
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+async function getAutologInSecrets(secrets: any){
+	return await secrets.get("autolog");
+	
+}
+
+export async function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "epitechpdf" is now active!');
-	let autolog: string;
+	const secrets = context['secrets'];
+	let autolog: string = await getAutologInSecrets(secrets);
+	console.log(autolog);
 	let pdf: any;
-	vscode.window.showInputBox({
-		prompt: 'Enter your autologin',
-		placeHolder: "Autologin",
-	}).then(value => {
-		if (value) {
-			value = value.replace('https://intra.epitech.eu/', '');
-			console.log(value);
-			axios.get(`https://intra.epitech.eu/${value}/?format=json`).then(() => {
-				autolog = value!;
-				vscode.window.showInformationMessage('Autologin set');
-				pdf = getPdf(autolog);
-			}).catch((e: any) => {
-				vscode.window.showErrorMessage("Wrong autologin Retry log you with command EpitechPDFLogin");
-			});
-		}
-	});
+	if (typeof autolog === 'undefined') {
+		vscode.window.showInputBox({
+			prompt: 'Enter your autologin',
+			placeHolder: "Autologin",
+		}).then(value => {
+			if (value) {
+				value = value.replace('https://intra.epitech.eu/', '');
+				console.log(value);
+				axios.get(`https://intra.epitech.eu/${value}/?format=json`).then(() => {
+					autolog = value!;
+					vscode.window.showInformationMessage('Autologin set');
+					secrets.store("autolog", autolog);
+					pdf = getPdf(autolog);
+				}).catch((e: any) => {
+					vscode.window.showErrorMessage("Wrong autologin Retry log you with command EpitechPDFLogin");
+				});
+			}
+		});
+  	} else {
+		  pdf = getPdf(autolog);
+	  }
 
 	let disposable = vscode.commands.registerCommand('epitechpdf.epitechPDF', async () => {
 		if (pdf) {
@@ -67,7 +78,6 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.env.openExternal(vscode.Uri.parse(seePDF.link));
 			} 
 		}
-		vscode.window.showInformationMessage('Hello World from epitechPdf!');
 	});
 
 	let login = vscode.commands.registerCommand('epitechpdf.epitechPDFLogin', () => {
@@ -80,6 +90,7 @@ export function activate(context: vscode.ExtensionContext) {
 				axios.get(`https://intra.epitech.eu/${value}/?format=json`).then(() => {
 					autolog = value!;
 					vscode.window.showInformationMessage('Autologin set');
+					secrets.store("autolog", autolog);
 					pdf = getPdf(autolog);
 				}).catch((e: any) => {
 					vscode.window.showErrorMessage("Wrong autologin Retry log you with command EpitechPDFLogin");
@@ -93,5 +104,4 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(login);
 }
 
-// this method is called when your extension is deactivated
 export function deactivate() { }
